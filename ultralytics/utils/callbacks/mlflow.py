@@ -35,6 +35,12 @@ try:
     from pathlib import Path
     PREFIX = colorstr('MLflow: ')
 
+    from st_commons.tools.convert_annotation_files import convert_ultralytics_prediction_to_bbox_disk
+
+    from datetime import datetime
+    import re
+
+
 except (ImportError, AssertionError):
     mlflow = None
 
@@ -47,6 +53,21 @@ def get_git_commit_hash(data_path):
     os.chdir(original_dir)
 
     return commit_hash
+
+
+def add_sport_to_experiment_name(experiment_name, dataset_path):
+    sports = ['soccer', 'basketball', 'ice hockey', 'field hockey', 'futsal',
+              'volleyball', 'motorsports', 'tennis', 'handball', 'floorball', 'football',
+              'baseball', 'golf', 'cricket']
+
+    sports_patterns = {sport: re.compile(re.escape(sport).replace(r'\ ', r'\S*'))
+                       for sport in sports}
+
+    for sport, pattern in sports_patterns.items():
+        if pattern.search(dataset_path):
+            return f"{sport.replace(' ', '')}_{experiment_name}"
+
+    return experiment_name
 
 
 def on_pretrain_routine_end(trainer):
@@ -76,7 +97,10 @@ def on_pretrain_routine_end(trainer):
 
     # Set experiment and run names
     experiment_name = os.environ.get('MLFLOW_EXPERIMENT_NAME') or trainer.args.project or '/Shared/YOLOv8'
+    experiment_name = add_sport_to_experiment_name(experiment_name, str(trainer.data['path']))
     run_name = os.environ.get('MLFLOW_RUN') or trainer.args.name
+    run_name = f'{datetime.now().strftime("%Y%m%d")}_{run_name}'
+
     mlflow.set_experiment(experiment_name)
 
     mlflow.autolog()
@@ -127,8 +151,17 @@ def on_train_end(trainer):
     """Log model artifacts at the end of the training."""
     if mlflow:
         mlflow.log_artifact(str(trainer.best.parent))  # log save_dir/weights directory with best.pt and last.pt
+
+        predictions_file_path = trainer.save_dir / 'predictions.json'
+        predictions_bbox_file_path = trainer.save_dir / 'predictions.bbox'
+        if predictions_file_path.exists():
+            convert_ultralytics_prediction_to_bbox_disk(
+                predictions_file_path,
+                predictions_bbox_file_path,
+                label_map=None)
+
         for f in trainer.save_dir.glob('*'):  # log all other files in save_dir
-            if f.suffix in {'.png', '.jpg', '.csv', '.pt', '.yaml', '.json'}:
+            if f.suffix in {'.png', '.jpg', '.csv', '.pt', '.yaml', '.json', '.bbox'}:
                 mlflow.log_artifact(str(f))
 
         mlflow.end_run()
