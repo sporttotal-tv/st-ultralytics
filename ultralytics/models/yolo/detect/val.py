@@ -70,6 +70,7 @@ class DetectionValidator(BaseValidator):
         self.confusion_matrix = ConfusionMatrix(nc=self.nc, conf=self.args.conf)
         self.seen = 0
         self.jdict = []
+        self.ldict = []
         self.stats = []
 
     def get_desc(self):
@@ -127,7 +128,13 @@ class DetectionValidator(BaseValidator):
 
             # Save
             if self.args.save_json:
-                self.pred_to_json(predn, batch['im_file'][si])
+                labelsn_as_predn = torch.cat(
+                    (tbox,
+                     torch.ones(tbox.size(0), 1).to(self.device)),
+                    1)
+                labelsn_as_predn = torch.cat((labelsn_as_predn, cls), 1)
+                self.pred_to_json(labelsn_as_predn, batch['im_file'][si], self.ldict)
+                self.pred_to_json(predn, batch['im_file'][si], self.jdict)
             if self.args.save_txt:
                 file = self.save_dir / 'labels' / f'{Path(batch["im_file"][si]).stem}.txt'
                 self.save_one_txt(predn, self.args.save_conf, shape, file)
@@ -226,14 +233,14 @@ class DetectionValidator(BaseValidator):
             with open(file, 'a') as f:
                 f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
-    def pred_to_json(self, predn, filename):
+    def pred_to_json(self, predn, filename, dict_to_fill):
         """Serialize YOLO predictions to COCO json format."""
         stem = Path(filename).stem
         image_id = int(stem) if stem.isnumeric() else stem
         box = ops.xyxy2xywh(predn[:, :4])  # xywh
         box[:, :2] -= box[:, 2:] / 2  # xy center to top-left corner
         for p, b in zip(predn.tolist(), box.tolist()):
-            self.jdict.append({
+            dict_to_fill.append({
                 'image_id': image_id,
                 'category_id': self.class_map[int(p[5])],
                 'bbox': [round(x, 3) for x in b],

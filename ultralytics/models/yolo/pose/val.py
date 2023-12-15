@@ -172,6 +172,7 @@ class PoseValidator(DetectionValidator):
                     names=self.names,
                     on_plot=self.on_plot)  # pred
 
+    # TODO: add ldict as we did in detect
     def pred_to_json(self, predn, filename):
         """Converts YOLO predictions to COCO JSON format."""
         stem = Path(filename).stem
