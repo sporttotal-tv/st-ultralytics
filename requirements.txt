@@ -46,4 +46,4 @@ thop>=0.1.1  # FLOPs computation
 # roboflow
 
 # SportTotal ---------------------------------
-st-commons  # to convert predictions to .bbox
+git+ssh://git@github.com/sporttotal-tv/st-commons.git@staging  # to convert predictions to .bbox
