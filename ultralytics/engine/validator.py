@@ -89,6 +89,7 @@ class BaseValidator:
         self.nc = None
         self.iouv = None
         self.jdict = None
+        self.ldict = None
         self.speed = {'preprocess': 0.0, 'inference': 0.0, 'loss': 0.0, 'postprocess': 0.0}
 
         self.save_dir = save_dir or get_save_dir(self.args)
@@ -201,6 +202,10 @@ class BaseValidator:
                     LOGGER.info(f'Saving {f.name}...')
                     json.dump(self.jdict, f)  # flatten and save
                 stats = self.eval_json(stats)  # update stats
+            if self.args.save_json and self.ldict:
+                with open(str(self.save_dir / 'gt.json'), 'w') as f:
+                    LOGGER.info(f'Saving {f.name}...')
+                    json.dump(self.ldict, f)  # flatten and save
             if self.args.plots or self.args.save_json:
                 LOGGER.info(f"Results saved to {colorstr('bold', self.save_dir)}")
             return stats
