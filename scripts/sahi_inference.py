@@ -8,6 +8,7 @@ import pickle
 from pathlib import Path
 from typing import Optional, Union
 from loguru import logger
+from tqdm import tqdm
 
 import torch
 from ultralytics.utils.files import increment_path
@@ -35,11 +36,87 @@ def convert_frame_predictiosn(results):
                                             }
     return player_frame_detections, ball_frame_detections
 
+def visualise_detections(frame_image, 
+                         frame_id, 
+                         player_frame_detections, 
+                         ball_frame_detections, 
+                         save_dir, 
+                         frame_number, 
+                         debug=False):
     
+    cv2.putText(frame_image, f"Frame {frame_id}: ", (video.image_w // 3, 50), cv2.FONT_HERSHEY_SIMPLEX,
+                2, (0, 0, 255),
+                3)
+
+    bbox_color = (0,255,0) # green #compute_color_for_labels(int(bbox_id))
+
+    for bbox_id in player_frame_detections:
+        x1, y1, x2, y2 = player_frame_detections[bbox_id]["bbox"]
+        cv2.rectangle(frame_image, (int(x1), int(y1)), (int(x2), int(y2)), bbox_color, 2)
+
+        cv2.putText(frame_image, f"{bbox_id}", (int((x1 + x2) // 2) - 10, int((y1 + y2) // 2)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+    if ball_frame_detections:
+        bx, by = ball_frame_detections["bbox"]
+        cv2.circle(frame_image, (int(bx), int(by)), 8, (0, 0, 255), 5)
+
+def custom_visulisation(results, image_bgr):
+    
+    object_prediction_list = results.object_prediction_list
+    boxes_list = []
+    clss_list = []
+    for ind, _ in enumerate(object_prediction_list):
+        clss = object_prediction_list[ind].category.name
+        boxes = (
+            object_prediction_list[ind].bbox.minx,
+            object_prediction_list[ind].bbox.miny,
+            object_prediction_list[ind].bbox.maxx,
+            object_prediction_list[ind].bbox.maxy,
+        )
+
+        boxes_list.append(boxes)
+        clss_list.append(clss)
+
+    # Create a copy of the original image to draw on
+    frame_copy = masked_image_bgr.copy()
+
+    for box, cls in zip(boxes_list, clss_list):
+        x1, y1, x2, y2 = box
+        cv2.rectangle(
+            frame_copy, (int(x1), int(y1)), (int(x2), int(y2)), (56, 56, 255), 2
+        )
+        label = str(cls)
+        t_size = cv2.getTextSize(label, 0, fontScale=0.6, thickness=1)[0]
+        cv2.rectangle(
+            frame_copy,
+            (int(x1), int(y1) - t_size[1] - 3),
+            (int(x1) + t_size[0], int(y1) + 3),
+            (56, 56, 255) if label == "person" else (56, 255, 56),
+            -1,
+        )
+        cv2.putText(
+            frame_copy,
+            label,
+            (int(x1), int(y1) - 2),
+            0,
+            0.6,
+            [255, 255, 255] if label == "person" else [0, 0, 0],
+            thickness=1,
+            lineType=cv2.LINE_AA,
+        )
+
+    frame_name = f"{frame_number:05d}_dets.jpg"
+    frame_path = save_dir / frame_name
+    cv2.imwrite(
+        str(frame_path),
+        frame_copy,
+    )
+                
 def detect_bboxes_from_video(video_path: str = None,
                              model_path: str = "yolov8n.pt",
                              start_time: Optional[Union[int,str]] = 0,
-                             end_time:Optional[Union[int,str]] = None,
+                             end_time: Optional[Union[int,str]] = None,
                              out_dir: Optional[str] = None,
                              out_path: Optional[str] = None,
                              court_mask_path: Optional[str] = None,
@@ -124,73 +201,53 @@ def detect_bboxes_from_video(video_path: str = None,
 
         player_detections[frame_id] = player_frame_detections
         ball_detections[frame_id] = ball_frame_detections
+        
+        if verbosity > 1:
+            frame_overlay = visualise_detections(masked_image_bgr, 
+                                                frame_id, 
+                                                player_frame_detections, 
+                                                ball_frame_detections)
+        if out_path is not None:
+            if video_writer is None:
+                video_out_path = out_path+ ".mp4"
+                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                video_writer = cv2.VideoWriter(video_out_path, fourcc, video.frame_rate, (video.image_w, video.image_h))
+            video_writer.write(frame_overlay)
+        
+        if verbosity > 2:  # interactive
+            cv2.imshow("detector", frame_overlay)
+            cv2.setWindowTitle("detector", video_basename)
+            cv2.waitKey(1)
 
-        if debug:
-            object_prediction_list = results.object_prediction_list
-            boxes_list = []
-            clss_list = []
-            for ind, _ in enumerate(object_prediction_list):
-                clss = object_prediction_list[ind].category.name
-                boxes = (
-                    object_prediction_list[ind].bbox.minx,
-                    object_prediction_list[ind].bbox.miny,
-                    object_prediction_list[ind].bbox.maxx,
-                    object_prediction_list[ind].bbox.maxy,
-                )
+        if out_path is not None:
+            if video_writer is None:
+                video_out_path = out_path+ ".mp4"
+                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                video_writer = cv2.VideoWriter(video_out_path, fourcc, video.frame_rate, (video.image_w, video.image_h))
+            video_writer.write(image_bgr)
 
-                boxes_list.append(boxes)
-                clss_list.append(clss)
+    det_data = {
+                "players": player_detections,
+                "ball": ball_detections,
+                "debug":{
+                    "frame_rate": video.frame_rate,
+                    "image_height": video.image_height,
+                    "image_width": video.image_width,
+                    "model_name": bbox_model.model_name,
+                }
+                }
 
-            # Create a copy of the original image to draw on
-            frame_copy = masked_image_bgr.copy()
-
-            for box, cls in zip(boxes_list, clss_list):
-                x1, y1, x2, y2 = box
-                cv2.rectangle(
-                    frame_copy, (int(x1), int(y1)), (int(x2), int(y2)), (56, 56, 255), 2
-                )
-                label = str(cls)
-                t_size = cv2.getTextSize(label, 0, fontScale=0.6, thickness=1)[0]
-                cv2.rectangle(
-                    frame_copy,
-                    (int(x1), int(y1) - t_size[1] - 3),
-                    (int(x1) + t_size[0], int(y1) + 3),
-                    (56, 56, 255) if label == "person" else (56, 255, 56),
-                    -1,
-                )
-                cv2.putText(
-                    frame_copy,
-                    label,
-                    (int(x1), int(y1) - 2),
-                    0,
-                    0.6,
-                    [255, 255, 255] if label == "person" else [0, 0, 0],
-                    thickness=1,
-                    lineType=cv2.LINE_AA,
-                )
-
-            frame_name = f"{frame_number:05d}_dets.jpg"
-            frame_path = save_dir / frame_name
-            cv2.imwrite(
-                str(frame_path),
-                frame_copy,
-            )
-
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-
-    cv2.destroyAllWindows()
-
-    try:
-        coco_out_path = f"{save_dir}/coco_results.pkl"
-        print(f"Saving {coco_out_path}...")
-        with open(coco_out_path, "wb") as f:
-            pickle.dump(detections, f)
-    except Exception as e:
-        print(e)
-        print(f"Could not save {coco_out_path}")
+    if out_path is not None:
+        pickle.dump(det_data, open(makepath(out_path), "wb"))
+        logger.success(f"Saved bbox detections to {out_path}")
+        if video_writer is not None:
+            video_writer.release()
+            logger.success(f"Saved bbox video to {video_out_path}")
+    else:
+        return det_data
 
     print("Inference with SAHI is done.")
+
 
 def detect_bboxes_from_images(image_dir: str = None,
                             model_path: str = "yolov8n.pt",
@@ -271,74 +328,6 @@ def detect_bboxes_from_images(image_dir: str = None,
 
         detections[frame_number] = object_prediction_list
 
-        if debug:
-            object_prediction_list = results.object_prediction_list
-            boxes_list = []
-            clss_list = []
-            for ind, _ in enumerate(object_prediction_list):
-                clss = object_prediction_list[ind].category.name
-                boxes = (
-                    object_prediction_list[ind].bbox.minx,
-                    object_prediction_list[ind].bbox.miny,
-                    object_prediction_list[ind].bbox.maxx,
-                    object_prediction_list[ind].bbox.maxy,
-                )
-
-                boxes_list.append(boxes)
-                clss_list.append(clss)
-
-            frame = cv2.imread(str(img_path))
-
-            # Create a copy of the original image to draw on
-            frame_copy = frame.copy()
-
-            for box, cls in zip(boxes_list, clss_list):
-                x1, y1, x2, y2 = box
-                cv2.rectangle(
-                    frame_copy, (int(x1), int(y1)), (int(x2), int(y2)), (56, 56, 255), 2
-                )
-                label = str(cls)
-                t_size = cv2.getTextSize(label, 0, fontScale=0.6, thickness=1)[0]
-                cv2.rectangle(
-                    frame_copy,
-                    (int(x1), int(y1) - t_size[1] - 3),
-                    (int(x1) + t_size[0], int(y1) + 3),
-                    (56, 56, 255) if label == "person" else (56, 255, 56),
-                    -1,
-                )
-                cv2.putText(
-                    frame_copy,
-                    label,
-                    (int(x1), int(y1) - 2),
-                    0,
-                    0.6,
-                    [255, 255, 255] if label == "person" else [0, 0, 0],
-                    thickness=1,
-                    lineType=cv2.LINE_AA,
-                )
-
-            frame_name = f"{frame_number:05d}_dets.jpg"
-            frame_path = save_dir / frame_name
-            cv2.imwrite(
-                str(frame_path),
-                frame_copy,
-            )
-
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-
-    cv2.destroyAllWindows()
-
-    try:
-        coco_out_path = f"{save_dir}/coco_results.pkl"
-        print(f"Saving {coco_out_path}...")
-        with open(coco_out_path, "wb") as f:
-            pickle.dump(detections, f)
-    except Exception as e:
-        print(e)
-        print(f"Could not save {coco_out_path}")
-
-    print("Inference with SAHI is done.")
 
 def parse_opt():
     """Parse command line arguments."""
