@@ -66,7 +66,7 @@ def visualise_detections(frame_image,
     
     if debug:
         print("Dumping final image to disk")
-        cv2.imwrite(Path(out_dir)/f"{frame_id}.jpg", frame_image)
+        cv2.imwrite(str(Path(out_dir)/f"{frame_id}.jpg"), frame_image)
 
 # def custom_visulisation(results, image_bgr):
     
@@ -230,7 +230,7 @@ def detect_bboxes_from_video(video_path: str = None,
                                                 debug = debug)
             if out_path is not None:
                 if video_writer is None:
-                    video_out_path = out_path+ ".mp4"
+                    video_out_path = str(out_path)+ ".mp4"
                     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
                     video_writer = cv2.VideoWriter(video_out_path, fourcc, video.frame_rate, (video.image_w, video.image_h))
                 video_writer.write(frame_overlay)
@@ -341,32 +341,3 @@ def detect_bboxes_from_video(video_path: str = None,
 #         ]
 
 #         detections[frame_number] = object_prediction_list
-
-
-def parse_opt():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--weights", type=str, default="yolov8n.pt", help="initial weights path"
-    )
-    parser.add_argument(
-        "--image-source", type=str, required=True, help="Images dir path"
-    )
-    parser.add_argument(
-        "--exist-ok",
-        action="store_true",
-        help="existing project/name ok, do not increment",
-    )
-    parser.add_argument("--debug", action="store_true", help="save frames with boxes")
-
-    return parser.parse_args()
-
-
-def main(opt):
-    """Main function."""
-    run(**vars(opt))
-
-
-if __name__ == "__main__":
-    opt = parse_opt()
-    main(opt)
