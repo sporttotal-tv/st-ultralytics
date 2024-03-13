@@ -18,7 +18,7 @@ from ultralytics import YOLO
 
 from st_commons.data.data_loader import VideoIterator
 
-def convert_frame_predictiosn(dets):
+def convert_frame_predictiosn(dets, confidence_threshold):
     """
     Convert frame predictions to player and ball detections.
 
@@ -37,6 +37,9 @@ def convert_frame_predictiosn(dets):
     
     max_ball_conf = -1        
     for idx, (bbox, conf, cls) in enumerate(zip(bboxes, conf_scores, classes)):
+        if conf < confidence_threshold:
+            continue
+        
         if cls == 0:  # person
             player_frame_detections[idx] = {"bbox": bbox, "bbox_conf": conf}
         elif cls == 32:  # ball
@@ -189,7 +192,7 @@ def detect_bboxes_from_video(video_path: str = None,
         #     overlap_width_ratio=0.2,
         # )
 
-        player_frame_detections, ball_frame_detections = convert_frame_predictiosn(dets)
+        player_frame_detections, ball_frame_detections = convert_frame_predictiosn(dets, confidence_threshold)
 
         player_detections[frame_id] = player_frame_detections
         ball_detections[frame_id] = ball_frame_detections
