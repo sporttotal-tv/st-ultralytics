@@ -203,9 +203,7 @@ def detect_bboxes_from_video(video_path: str = None,
             masked_image_bgr = cv2.bitwise_and(image_bgr, court_mask)
         else:
             masked_image_bgr = image_bgr
-        print('verbosity', verbosity, debug)
         
-            
         results = get_sliced_prediction(
             masked_image_bgr,
             detection_model,
