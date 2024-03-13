@@ -19,6 +19,15 @@ from ultralytics import YOLO
 from st_commons.data.data_loader import VideoIterator
 
 def convert_frame_predictiosn(dets):
+    """
+    Convert frame predictions to player and ball detections.
+
+    Args:
+        dets: Frame detections from the YOLOv8 model.
+
+    Returns:
+        tuple: Player frame detections and ball frame detections.
+    """
     player_frame_detections = {}
     ball_frame_detections = {}
 
@@ -43,7 +52,20 @@ def visualise_detections(frame_image,
                          ball_frame_detections,
                          out_dir = '/tmp',
                          debug = False):
-    
+    """
+    Visualize player and ball detections on the frame image.
+
+    Args:
+        frame_image: The frame image.
+        frame_id: The frame ID.
+        player_frame_detections: Player detections for the frame.
+        ball_frame_detections: Ball detections for the frame.
+        out_dir: Output directory for saving the visualized frames (default: '/tmp').
+        debug: Flag to save the visualized frames to disk (default: False).
+
+    Returns:
+        numpy.ndarray: The frame image with visualized detections.
+    """
     cv2.putText(frame_image, f"Frame {frame_id}: ", (frame_image.shape[0] // 3, 50), cv2.FONT_HERSHEY_SIMPLEX,
                 2, (0, 0, 255),
                 3)
@@ -58,12 +80,14 @@ def visualise_detections(frame_image,
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
     if ball_frame_detections:
-        bx, by = ball_frame_detections["bbox"]
+        bx, by = ball_frame_detections["bbox"][:2]
         cv2.circle(frame_image, (int(bx), int(by)), 8, (0, 0, 255), 5)
     
     if debug:
         print("Dumping final image to disk")
         cv2.imwrite(str(Path(out_dir)/f"{frame_id}.jpg"), frame_image)
+    
+    return frame_image
                 
 def detect_bboxes_from_video(video_path: str = None,
                              model_path: str = "yolov8n.pt",
@@ -83,11 +107,22 @@ def detect_bboxes_from_video(video_path: str = None,
     Run object detection on images using YOLOv8 and SAHI.
 
     Args:
-        weights_path: Model weights path.
-        image_source: Image directory path.
-        out_path: Path to the .bbox file.
-        exist_ok: Overwrite existing files.
-        debug: Save frames with boxes.
+        video_path: Path to the input video file.
+        model_path: Path to the custom-trained model weights (default: "yolov8n.pt").
+        model_type: Type of the model (default: "yolov8").
+        start_time: Start time of the video segment to process (default: 0).
+        end_time: End time of the video segment to process (default: None).
+        out_dir: Output directory for saving the detection results (default: None).
+        out_path: Path to save the .bbox file (default: None).
+        court_mask_path: Path to the court mask image (default: None).
+        confidence_threshold: Confidence threshold for object detection (default: 0.5).
+        device: Device to run the inference on (default: "cuda:0").
+        verbosity: Verbosity level (default: 0).
+        debug: Flag to save the visualized frames to disk (default: False).
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        dict: Detection data containing player and ball detections.
     """
     # Check source video
     if not Path(video_path).is_file():
@@ -160,7 +195,6 @@ def detect_bboxes_from_video(video_path: str = None,
         ball_detections[frame_id] = ball_frame_detections
         
         if verbosity > 0:
-            print("Visualisation")
             frame_overlay = visualise_detections(masked_image_bgr, 
                                                 frame_id = frame_id, 
                                                 player_frame_detections = player_frame_detections, 

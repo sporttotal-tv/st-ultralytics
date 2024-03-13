@@ -1,4 +1,7 @@
 """
+This script performs object detection on a pano video using a custom-trained YOLOv8 model.
+It detects players and the ball in each frame and saves the detections to a .bbox file.
+
 Code inspired from: 
 1. https://github.com/sporttotal-tv/cvat-api-sttv/blob/develop/scripts/sahi_yolov8_inference.py
 2. https://github.com/sporttotal-tv/yolov5/blob/staging/yolov5/utils/sporttotal.py
@@ -24,6 +27,17 @@ from sahi.utils.yolov8 import download_yolov8s_model
 from st_commons.data.data_loader import VideoIterator
 
 def convert_frame_predictiosn(results):
+    """
+    Converts SAHI detection results into separate dictionaries for player and ball detections.
+
+    Args:
+        results (Prediction): The SAHI Prediction object containing detection results for a frame.
+
+    Returns:
+        tuple: A tuple containing two dictionaries:
+            - player_frame_detections: A dictionary mapping each detected player's ID to its bounding box and confidence score.
+            - ball_frame_detections: A dictionary mapping each detected ball's ID to its bounding box and confidence score.
+    """
     player_frame_detections = {}
     ball_frame_detections = {}
 
@@ -46,7 +60,20 @@ def visualise_detections(frame_image,
                          ball_frame_detections,
                          out_dir = '/tmp',
                          debug = False):
-    
+    """
+    Visualize player and ball detections on the frame image.
+
+    Args:
+        frame_image: The frame image.
+        frame_id: The frame ID.
+        player_frame_detections: Player detections for the frame.
+        ball_frame_detections: Ball detections for the frame.
+        out_dir: Output directory for saving the visualized frames (default: '/tmp').
+        debug: Flag to save the visualized frames to disk (default: False).
+
+    Returns:
+        numpy.ndarray: The frame image with visualized detections.
+    """
     cv2.putText(frame_image, f"Frame {frame_id}: ", (frame_image.shape[0] // 3, 50), cv2.FONT_HERSHEY_SIMPLEX,
                 2, (0, 0, 255),
                 3)
@@ -61,65 +88,15 @@ def visualise_detections(frame_image,
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
     if ball_frame_detections:
-        bx, by = ball_frame_detections["bbox"]
+        bx, by = ball_frame_detections["bbox"][:2]
         cv2.circle(frame_image, (int(bx), int(by)), 8, (0, 0, 255), 5)
     
     if debug:
         print("Dumping final image to disk")
         cv2.imwrite(str(Path(out_dir)/f"{frame_id}.jpg"), frame_image)
-
-# def custom_visulisation(results, image_bgr):
     
-#     object_prediction_list = results.object_prediction_list
-#     boxes_list = []
-#     clss_list = []
-#     for ind, _ in enumerate(object_prediction_list):
-#         clss = object_prediction_list[ind].category.name
-#         boxes = (
-#             object_prediction_list[ind].bbox.minx,
-#             object_prediction_list[ind].bbox.miny,
-#             object_prediction_list[ind].bbox.maxx,
-#             object_prediction_list[ind].bbox.maxy,
-#         )
-
-#         boxes_list.append(boxes)
-#         clss_list.append(clss)
-
-#     # Create a copy of the original image to draw on
-#     frame_copy = masked_image_bgr.copy()
-
-#     for box, cls in zip(boxes_list, clss_list):
-#         x1, y1, x2, y2 = box
-#         cv2.rectangle(
-#             frame_copy, (int(x1), int(y1)), (int(x2), int(y2)), (56, 56, 255), 2
-#         )
-#         label = str(cls)
-#         t_size = cv2.getTextSize(label, 0, fontScale=0.6, thickness=1)[0]
-#         cv2.rectangle(
-#             frame_copy,
-#             (int(x1), int(y1) - t_size[1] - 3),
-#             (int(x1) + t_size[0], int(y1) + 3),
-#             (56, 56, 255) if label == "person" else (56, 255, 56),
-#             -1,
-#         )
-#         cv2.putText(
-#             frame_copy,
-#             label,
-#             (int(x1), int(y1) - 2),
-#             0,
-#             0.6,
-#             [255, 255, 255] if label == "person" else [0, 0, 0],
-#             thickness=1,
-#             lineType=cv2.LINE_AA,
-#         )
-
-#     frame_name = f"{frame_number:05d}_dets.jpg"
-#     frame_path = save_dir / frame_name
-#     cv2.imwrite(
-#         str(frame_path),
-#         frame_copy,
-#     )
-                
+    return frame_image
+           
 def detect_bboxes_from_video(video_path: str = None,
                              model_path: str = "yolov8n.pt",
                              model_type: Optional[str] = "yolov8",
@@ -138,11 +115,22 @@ def detect_bboxes_from_video(video_path: str = None,
     Run object detection on images using YOLOv8 and SAHI.
 
     Args:
-        weights_path: Model weights path.
-        image_source: Image directory path.
-        out_path: Path to the .bbox file.
-        exist_ok: Overwrite existing files.
-        debug: Save frames with boxes.
+        video_path: Path to the input video file.
+        model_path: Path to the custom-trained model weights (default: "yolov8n.pt").
+        model_type: Type of the model (default: "yolov8").
+        start_time: Start time of the video segment to process (default: 0).
+        end_time: End time of the video segment to process (default: None).
+        out_dir: Output directory for saving the detection results (default: None).
+        out_path: Path to save the .bbox file (default: None).
+        court_mask_path: Path to the court mask image (default: None).
+        confidence_threshold: Confidence threshold for object detection (default: 0.5).
+        device: Device to run the inference on (default: "cuda:0").
+        verbosity: Verbosity level (default: 0).
+        debug: Flag to save the visualized frames to disk (default: False).
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        dict: Detection data containing player and ball detections.
     """
     # Check source video
     if not Path(video_path).is_file():
@@ -219,7 +207,6 @@ def detect_bboxes_from_video(video_path: str = None,
         ball_detections[frame_id] = ball_frame_detections
         
         if verbosity > 0:
-            print("Visualisation")
             frame_overlay = visualise_detections(masked_image_bgr, 
                                                 frame_id = frame_id, 
                                                 player_frame_detections = player_frame_detections, 
@@ -259,83 +246,3 @@ def detect_bboxes_from_video(video_path: str = None,
         return det_data
 
     print("Inference with SAHI is done.")
-
-
-# def detect_bboxes_from_images(image_dir: str = None,
-#                             model_path: str = "yolov8n.pt",
-#                             start_time: Optional[Union[int,str]] = 0,
-#                             end_time:Optional[Union[int,str]] = None,
-#                             out_dir: Optional[str] = None,
-#                             out_path: Optional[str] = None,
-#                             court_mask_path: Optional[str] = None,
-#                             device: Optional[str] = "cuda:0",
-#                             verbosity: int = 0,
-#                             **kwargs
-# ):
-#     """
-#     Run object detection on images using YOLOv8 and SAHI.
-
-#     Args:
-#         weights_path: Model weights path.
-#         image_source: Image directory path.
-#         exist_ok: Overwrite existing files.
-#         debug: Save frames with boxes.
-#     """
-#     # Check source video or image path
-#     if not Path(image_dir).is_dir() and not Path(video_path).is_file():
-#         raise NotADirectoryError(f"Source path '{image_dir}'/'{video_path}' both are null.")
-
-#     # Check model path
-#     if not Path(model_path).is_file():
-#         # download_yolov8s_model(model_path)
-#         raise FileNotFoundError(f"Model path '{model_path}' is not a file.")
-    
-#     # Output setup
-#     if out_dir is None:
-#         out_dir = increment_path(Path(image_dir) / "results_sahi" / "exp", exist_ok=True)
-#         out_dir.mkdir(parents=True, exist_ok=True)
-
-#     # Check court mask path
-#     use_court_mask = court_mask_path is not None
-#     if use_court_mask:
-#         assert osp.exists(court_mask_path), f"Cannot find court mask at {court_mask_path}"
-#         logger.info(f"Use court mask: {court_mask_path}")
-#         court_mask = cv2.imread(court_mask_path)
-        
-#     model = YOLO(model_path)
-    
-#     # Detect objects from classes 0 and 32 only
-#     # classes = [0, 32]
-#     # model.overrides["classes"] = classes
-
-#     detection_model = AutoDetectionModel.from_pretrained(
-#         model_type="yolov8",
-#         model=model,
-#         confidence_threshold=0.3,
-#         device="cuda:0" if torch.cuda.is_available() else "cpu",
-#     )
-
-    
-#     if image_dir:
-#         image_files = list(Path(image_dir).rglob("*.[jp][pn]g"))
-#         if not image_files:
-#             raise FileNotFoundError(f"No image files found in: {image_dir}")
-
-#     detections = {}
-#     for img_path in image_files:
-#         results = get_sliced_prediction(
-#             str(img_path),
-#             detection_model,
-#             slice_height=512,
-#             slice_width=512,
-#             overlap_height_ratio=0.2,
-#             overlap_width_ratio=0.2,
-#         )
-
-#         frame_number = int(img_path.stem)
-
-#         object_prediction_list = [
-#             res.to_coco_annotation().json for res in results.object_prediction_list
-#         ]
-
-#         detections[frame_number] = object_prediction_list
