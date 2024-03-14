@@ -2,6 +2,22 @@ SHELL := $(shell which bash)
 USER := st_user
 
 ################
+# Inference tasks #
+################
+
+run_detection:
+	python scripts/run.py detect_bboxes_from_video \
+							--video_path '/mnt/ai-storage/jira/imtec356/ma25fad386_5100_5160/pano.mp4' \
+							--court_mask_path '/mnt/ai-storage/jira/imtec356/ma25fad386_5100_5160/pano_mask.png' \
+                         	--model_path '/mnt/ai-storage/jira/imtec356/models/20231231_yolov8x-albumentations.pt' \
+                         	--model_type "yolov8" \
+                         	--start_time 0 \
+                         	--end_time 10 \
+							--verbosity 1 \
+                         	--sahi_inference False \
+                         	--debug True
+
+################
 # Docker tasks #
 ################
 

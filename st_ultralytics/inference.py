@@ -20,7 +20,7 @@ import torch
 from ultralytics.utils.files import increment_path
 from ultralytics import YOLO
 
-from scripts.utils import convert_yolo_frame_predictions, convert_sahi_frame_predictions, visualise_detections
+from st_ultralytics.utils import convert_yolo_frame_predictions, convert_sahi_frame_predictions, visualise_detections
 
 from sahi import AutoDetectionModel
 from sahi.predict import get_sliced_prediction
