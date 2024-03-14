@@ -1,0 +1,9 @@
+yolov8:
+  confidence_threshold: 0.3
+
+sahi:
+  slice_height: 512
+  slice_width: 512
+  overlap_height_ratio: 0.2
+  overlap_width_ratio: 0.2
+  confidence_threshold: 0.3
