@@ -30,7 +30,7 @@ from st_commons.data.data_loader import VideoIterator
 from st_commons.tools.general import prepare_cfg
            
 def detect_bboxes_from_video(video_path: str = None,
-                             model_path: str = "yolov8n.pt",
+                             model_path: str = None,
                              model_type: Optional[str] = "yolov8",
                              start_time: Optional[Union[int,str]] = 0,
                              end_time: Optional[Union[int,str]] = None,
@@ -68,7 +68,17 @@ def detect_bboxes_from_video(video_path: str = None,
     if not Path(video_path).is_file():
         raise FileNotFoundError(f"Source video at '{video_path}' not found.")
 
+    # Read config
+    config = prepare_cfg()   
+    
     # Check model path
+    if model_path is None:
+        if sahi_inference:
+            model_path = config.sahi.model_path
+        else:
+            if model_type == "yolov8":               
+                model_path = config.yolov8.model_path
+        
     if not Path(model_path).is_file():
         # download_yolov8s_model(model_path)
         raise FileNotFoundError(f"Model path '{model_path}' is not a file.")
@@ -97,8 +107,7 @@ def detect_bboxes_from_video(video_path: str = None,
     video = VideoIterator(video_path)
     video_basename = Path(video_path).stem
     video_writer = None
-    
-    config = prepare_cfg()    
+     
     model = YOLO(model_path)
     
     # Detect objects from classes 0 and 32 only
