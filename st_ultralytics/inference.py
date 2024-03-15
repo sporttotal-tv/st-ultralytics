@@ -85,14 +85,14 @@ def detect_bboxes_from_video(video_path: str = None,
     
     # Output setup
     if out_dir is None:
-        out_dir = increment_path(Path(video_path).parent / "sahi_detection_results", exist_ok=True)
+        if sahi_inference: exp_name = 'sahi_detection_results'
+        else: exp_name = 'detection_results'        
+        out_dir = increment_path(Path(video_path).parent / exp_name, exist_ok=True)
         out_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"out_dir is: {out_dir}")
     
     if out_path is None:
-        if sahi_inference: exp_name = 'sahi_detection_results'
-        else: exp_name = 'detection_results'
-        out_path = increment_path(Path(video_path).parent / exp_name / (Path(video_path).stem+".bbox"), exist_ok=True)
+        out_path = increment_path(out_dir / (Path(video_path).stem+".bbox"), exist_ok=True)
     else:
         assert out_path.endswith(".bbox"), f"out_path must end with .bbox, got {out_path}"
     logger.info(f"out_path is: {out_path}")
