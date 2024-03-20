@@ -43,7 +43,7 @@ def parse_requirements(file_path: Path):
 
 
 setup(
-    name='ultralytics',  # name of pypi package
+    name='st_ultralytics',  # name of pypi package
     version=get_version(),  # version of pypi package
     python_requires='>=3.8',
     license='AGPL-3.0',
@@ -58,7 +58,7 @@ setup(
         'Source': 'https://github.com/ultralytics/ultralytics'},
     author='Ultralytics',
     author_email='hello@ultralytics.com',
-    packages=['ultralytics'] + [str(x) for x in Path('ultralytics').rglob('*/') if x.is_dir() and '__' not in str(x)],
+    packages=['st_ultralytics'] + [str(x) for x in Path('st_ultralytics').rglob('*/') if x.is_dir() and '__' not in str(x)] + ['ultralytics'] + [str(x) for x in Path('ultralytics').rglob('*/') if x.is_dir() and '__' not in str(x)],
     package_data={
         '': ['*.yaml'],
         'ultralytics.assets': ['*.jpg']},
