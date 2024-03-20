@@ -1,4 +1,4 @@
-yolov8:
+yolov8x:
   confidence_threshold: 0.3
   model_path: None
 
