@@ -24,14 +24,14 @@ from st_ultralytics.utils import convert_yolo_frame_predictions, convert_sahi_fr
 
 from sahi import AutoDetectionModel
 from sahi.predict import get_sliced_prediction
-from sahi.utils.yolov8 import download_yolov8s_model
+from sahi.utils.yolov8 import download_yolov8x_model
 
 from st_commons.data.data_loader import VideoIterator
 from st_commons.tools.general import prepare_cfg
            
 def detect_bboxes_from_video(video_path: str = None,
                              model_path: str = None,
-                             model_type: Optional[str] = "yolov8",
+                             model_type: Optional[str] = "yolov8x",
                              start_time: Optional[Union[int,str]] = 0,
                              end_time: Optional[Union[int,str]] = None,
                              out_dir: Optional[str] = None,
@@ -76,9 +76,13 @@ def detect_bboxes_from_video(video_path: str = None,
         if sahi_inference:
             model_path = config.sahi.model_path
         else:
-            if model_type == "yolov8":               
+            if model_type == "yolov8x":               
                 model_path = config.yolov8.model_path
-        
+    
+    if model_path is None:
+        model_path = "yolov8x.pt"
+        download_yolov8x_model(model_path) 
+           
     if not Path(model_path).is_file():
         # download_yolov8s_model(model_path)
         raise FileNotFoundError(f"Model path '{model_path}' is not a file.")
