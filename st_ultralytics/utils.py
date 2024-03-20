@@ -49,18 +49,20 @@ def convert_sahi_frame_predictions(results):
     """
     player_frame_detections = {}
     ball_frame_detections = {}
-
+    max_ball_conf = -1  
     for bboxid, detection in enumerate(results.object_prediction_list):
-        if detection.category.name == 'player':
+        if detection.category.name in ['player', 'person']:
             player_frame_detections[bboxid] = {
                                                 'bbox': [int(v) for v in detection.bbox.to_xyxy()],
                                                 'bbox_conf': round(detection.score.value, 5)
                                                 }
         else:
-            ball_frame_detections[bboxid] = {
-                                                'bbox': [int(v) for v in detection.bbox.to_xyxy()],
-                                                'bbox_conf': round(detection.score.value, 5)
-                                            }
+            if detection.score.value > max_ball_conf:
+                ball_frame_detections = {
+                                            'bbox': [int(v) for v in detection.bbox.to_xyxy()],
+                                            'bbox_conf': round(detection.score.value, 5)
+                                        }
+                max_ball_conf = detection.score.value
     return player_frame_detections, ball_frame_detections
 
 
