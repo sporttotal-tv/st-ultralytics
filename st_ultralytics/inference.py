@@ -77,7 +77,7 @@ def detect_bboxes_from_video(video_path: str = None,
             model_path = config.sahi.model_path
         else:
             if model_type == "yolov8x":               
-                model_path = config.yolov8.model_path
+                model_path = config.yolov8x.model_path
     
     if model_path is None:
         model_path = "yolov8x.pt"
