@@ -111,8 +111,8 @@ def detect_bboxes_from_video(video_path: str = None,
     model = YOLO(model_path)
     
     # Detect objects from classes 0 and 32 only
-    # classes = [0, 32]
-    # model.overrides["classes"] = classes
+    classes = [0, 32]
+    model.overrides["classes"] = classes
 
     if sahi_inference:
         logger.info(f"Sahi based inferencing is enabled")
@@ -168,7 +168,7 @@ def detect_bboxes_from_video(video_path: str = None,
                 if video_writer is None:
                     video_out_path = str(out_path)+ ".mp4"
                     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-                    video_writer = cv2.VideoWriter(video_out_path, fourcc, video.frame_rate, (video.image_w, video.image_h))
+                    video_writer = cv2.VideoWriter(video_out_path, fourcc, video.frame_rate, (video.image_width, video.image_height))
                 video_writer.write(frame_overlay)
             
             if verbosity > 2:  # interactive
