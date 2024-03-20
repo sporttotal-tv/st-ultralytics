@@ -105,6 +105,6 @@ def visualise_detections(frame_image,
     
     if debug:
         print("Dumping final image to disk")
-        cv2.imwrite(str(Path(out_dir)/f"{frame_id}.jpg"), frame_image)
+        cv2.imwrite(str(Path(out_dir)/"frames"/f"{frame_id}.jpg"), frame_image)
     
     return frame_image
