@@ -1,9 +1,9 @@
 yolov8:
   confidence_threshold: 0.3
-  model_path: /path/to/yolov8/weights
+  model_path: None
 
 sahi:
-  model_path: /path/to/yolov8/weights
+  model_path: None
   slice_height: 512
   slice_width: 512
   overlap_height_ratio: 0.2
