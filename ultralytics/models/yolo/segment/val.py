@@ -192,6 +192,7 @@ class SegmentationValidator(DetectionValidator):
             on_plot=self.on_plot)  # pred
         self.plot_masks.clear()
 
+    # TODO: add ldict as we did in detect
     def pred_to_json(self, predn, filename, pred_masks):
         """Save one JSON result."""
         # Example result = {"image_id": 42, "category_id": 18, "bbox": [258.15, 41.29, 348.26, 243.78], "score": 0.236}
